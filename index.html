@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-VDVDNNRTREupwUTWnq6itaNdc1TFEVFbXV4xlAS7Gow=' 'sha256-ArXGotQ3u4H89vkJjv/Zw2CQUMcnVeymQPWQ87Rz1Pw='; style-src 'sha256-qeHhPGEyQblKy486aYhRawleb8bJNnidqNHnEqF055M='; img-src data: blob:; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-VDVDNNRTREupwUTWnq6itaNdc1TFEVFbXV4xlAS7Gow=' 'sha256-D4RJGiZiSvZjCpeLhZoHfYtHv1cTitycI5qs7TK9gPw='; style-src 'sha256-zibgNRf602kvpjRfShZrevviRCd6hPMEwSkraMXKI8A='; img-src data: blob:; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>ARA Viewer — lihat desain ruangan dalam 360°</title>
 <meta name="description" content="Buka berkas panorama 360 dari desainer Anda, lalu geser atau putar HP. Berkas tetap di HP Anda — tidak diunggah.">
@@ -37,6 +37,10 @@
   .cadangan h1 { font-size: 24px; line-height: 1.2; margin: 6px 0 2px; }
   .cadangan .studio { color: var(--redup); margin: 0 0 16px; }
   .cadangan img { width: 100%; border-radius: 14px; display: block; border: 1px solid var(--garis); }
+  .cadangan .petak { list-style: none; margin: 10px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }   /* tur: sampul tiap ruang */
+  .cadangan .petak li { margin: 0; overflow: hidden; border-radius: 14px; border: 1px solid var(--garis); background: var(--ubin); }
+  .cadangan .petak img { border: 0; border-radius: 0; }
+  .cadangan .petak span { display: block; padding: 6px 10px 8px; color: var(--redup); font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .cadangan .ruang { color: var(--redup); font-size: 13px; margin: 8px 0 20px; }
   .cadangan .kotak { border: 1px solid var(--garis); border-radius: 16px; padding: 16px; background: var(--ubin); }
   .cadangan .kotak b { font-size: 16px; }
@@ -51,7 +55,9 @@
   body.jatuh::after { content: ""; position: fixed; inset: 12px; border: 2px dashed var(--aksen); border-radius: 12px; pointer-events: none; }
 
   /* Lapisan klien — di jendela ARA (body.polos) semuanya disembunyikan; kontrol milik jendela bento. */
-  body.polos .bilah, body.polos .judul, body.polos .alat, body.polos .petunjuk, body.polos .kredit, body.polos .sambut, body.polos .tirai { display: none !important; }
+  body.polos .bilah, body.polos .judul, body.polos .alat, body.polos .petunjuk, body.polos .kredit, body.polos .sambut, body.polos .tirai,
+  body.polos .panahan, body.polos .denah { display: none !important; }
+  body.rekam canvas { object-fit: contain; }   /* video sedang direkam: kanvas berukuran video, tampil utuh (tak melar) di layar */
   .judul { position: fixed; left: 16px; top: calc(16px + var(--aman-a)); max-width: min(380px, calc(100% - 32px - 148px)); border-radius: 18px; padding: 12px 16px; pointer-events: none; }
   .judul .proyek { color: var(--redup); font-size: 12px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .judul .ruang { font-size: 20px; font-weight: 700; line-height: 1.2; margin-top: 2px; }
@@ -78,6 +84,22 @@
   .info { display: none; }   /* ukuran & rasio: untuk jendela ARA/uji, tidak untuk klien */
   .kredit { position: fixed; right: 16px; bottom: calc(16px + var(--aman-b)); font-size: 11px; color: rgba(236, 235, 230, .85); text-shadow: 0 1px 3px rgba(0, 0, 0, .7); pointer-events: none; }
   body.ada-rak .kredit { bottom: calc(140px + var(--aman-b)); }
+
+  /* Tur virtual (hanya bila ruang punya posisi): panah di dalam panorama (= .bulat + .kaca, 44 px) + denah mini (= kartu .judul).
+     Posisi panah dihitung tiap gambar(). */
+  .panahan { position: fixed; inset: 0; overflow: hidden; pointer-events: none; }
+  .panah { position: absolute; left: -22px; top: -22px; pointer-events: auto; }
+  .panah .nm { position: absolute; top: 50%; left: calc(100% + 8px); transform: translateY(-50%); max-width: 150px; padding: 4px 12px; border-radius: 999px;
+               font-size: 12px; font-weight: 600; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .panah.kiri .nm { left: auto; right: calc(100% + 8px); }   /* panah di sisi kanan layar: nama ke kiri supaya tak terpotong */
+  .denah { position: fixed; right: 16px; top: calc(68px + var(--aman-a)); width: 132px; height: 132px; border-radius: 18px; overflow: hidden; }
+  .denah svg { display: block; width: 132px; height: 132px; }
+  .denah .titik { cursor: pointer; outline: none; }
+  .denah .noktah { fill: var(--redup); }
+  .denah .titik:hover .noktah, .denah .titik:focus-visible .noktah { fill: var(--teks); }
+  .denah .titik.aktif { cursor: default; }
+  .denah .titik.aktif .noktah { fill: var(--aksen); }
+  .denah .kipas { fill: var(--aksen); fill-opacity: .28; stroke: var(--aksen); stroke-width: 1; stroke-linejoin: round; }
 
   /* ARA Viewer: halaman pembuka bila belum ada gambar */
   .sambut { position: fixed; inset: 0; display: grid; place-items: center; padding: 16px; overflow-y: auto;
@@ -107,13 +129,14 @@
     .judul .ruang { font-size: 17px; }
     .kartu { width: 104px; }
     .kartu .gbr { height: 60px; }
-    body.ada-rak .kredit { bottom: calc(126px + var(--aman-b)); }
+    body.ada-rak .kredit { bottom: calc(134px + var(--aman-b)); }   /* rak 114 px + 16: dulu 126 -> kotak kredit menindih rak 4 px (terukur 390x844) */
   }
   @media (prefers-reduced-motion: reduce) { .petunjuk svg { animation: none; } .tirai { transition: none; } }
 </style>
 </head>
 <body>
 <canvas id="kanvas"></canvas>
+<div class="panahan" id="panahan"></div>
 <div class="tirai" id="tirai"></div>
 <div class="bingkai" id="bingkai" hidden><span id="bingkai-label"></span></div>
 <div class="judul kaca" id="judul" hidden><div class="proyek" id="j-proyek"></div><div class="ruang" id="j-ruang"></div><div class="ke" id="j-ke"></div></div>
@@ -122,6 +145,7 @@
   <button class="bulat kaca" id="b-gerak" aria-pressed="false" aria-label="Putar HP untuk melihat sekeliling" title="Putar HP untuk melihat sekeliling" hidden><svg class="ik" viewBox="0 0 24 24"><path d="M7 6.2002V17.8002C7 18.9203 7 19.4796 7.21799 19.9074C7.40973 20.2837 7.71547 20.5905 8.0918 20.7822C8.5192 21 9.07899 21 10.1969 21H13.8031C14.921 21 15.48 21 15.9074 20.7822C16.2837 20.5905 16.5905 20.2837 16.7822 19.9074C17 19.48 17 18.921 17 17.8031V6.19691C17 5.07899 17 4.5192 16.7822 4.0918C16.5905 3.71547 16.2837 3.40973 15.9074 3.21799C15.4796 3 14.9203 3 13.8002 3H10.2002C9.08009 3 8.51962 3 8.0918 3.21799C7.71547 3.40973 7.40973 3.71547 7.21799 4.0918C7 4.51962 7 5.08009 7 6.2002Z"/></svg></button>
   <button class="bulat kaca" id="b-penuh" aria-label="Layar penuh" title="Layar penuh" hidden><svg class="ik" viewBox="0 0 24 24"><path d="M10 19H5V14M14 5H19V10"/></svg></button>
 </div>
+<div class="denah kaca" id="denah" hidden><svg id="denah-svg" viewBox="0 0 132 132" role="group" aria-label="Denah ruang"></svg></div>
 <div class="petunjuk kaca" id="petunjuk" hidden><svg class="ik" viewBox="0 0 24 24"><path d="M3 12H21M3 12L6 15M3 12L6 9M21 12L18 9M21 12L18 15"/></svg>Geser untuk melihat sekeliling</div>
 <div class="bilah" id="rak" hidden><div class="kaca" id="daftar"></div><span class="info" id="info"></span></div>
 <div class="kredit" id="kredit" hidden>Dibuat dengan ARA</div>
@@ -204,12 +228,13 @@
   const kerja = document.createElement('canvas');
   const ctx = kerja.getContext('2d');
 
-  const daftar = []; let aktif = -1;
-  let yaw = 0, pitch = 0, fov = 75 * Math.PI / 180, antre = false;
+  const daftar = []; let aktif = -1, tukar = 0;   // daftar[i] = {nama, src, img (hanya ruang aktif), w, h, kartu, pos?, depan?, grup?}
+  let yaw = 0, pitch = 0, fov = 75 * Math.PI / 180, antre = false, rekam = false;   // rekam = perekam video memegang kanvas
   const MIN_FOV = 30 * Math.PI / 180, MAX_FOV = 110 * Math.PI / 180;
 
   function gambar() {
     antre = false;
+    if (rekam) return;   // selama video direkam, kanvas berukuran video — jangan diubah/digambar di luar perekam
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const w = Math.round(kanvas.clientWidth * dpr), h = Math.round(kanvas.clientHeight * dpr);
     if (kanvas.width !== w || kanvas.height !== h) { kanvas.width = w; kanvas.height = h; }
@@ -217,6 +242,7 @@
     if (aktif < 0) return;
     gl.uniform1f(uYaw, yaw); gl.uniform1f(uPitch, pitch); gl.uniform1f(uT, Math.tan(fov / 2)); gl.uniform1f(uAspek, w / h);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    aturPanah(); aturDenah();
   }
   const minta = () => { if (!antre) { antre = true; requestAnimationFrame(gambar); } };
 
@@ -232,7 +258,7 @@
   }
   // ponytail: sisi panjang tetap (1600) — di sudut itu panorama Gemini hanya punya ±600–900 px detail asli.
   function potong(panjang) {
-    if (aktif < 0 || !(rasioBingkai > 0)) return null;
+    if (aktif < 0 || rekam || !(rasioBingkai > 0)) return null;
     const k = $('bingkai').clientHeight / kanvas.clientHeight;
     const w = Math.round(rasioBingkai >= 1 ? panjang : panjang * rasioBingkai), h = Math.round(rasioBingkai >= 1 ? panjang / rasioBingkai : panjang);
     kanvas.width = w; kanvas.height = h; gl.viewport(0, 0, w, h);
@@ -259,7 +285,7 @@
   let tadi = 0;
   function jalan(ts) {
     const dt = Math.min(0.05, (ts - tadi) / 1000 || 0); tadi = ts;
-    if (putar && !gerak && aktif >= 0 && !polos() && !document.hidden) { yaw += dt * 0.08; gambar(); }
+    if (putar && !gerak && aktif >= 0 && !polos() && !document.hidden && !rekam) { yaw += dt * 0.08; gambar(); }
     requestAnimationFrame(jalan);
   }
   const usir = () => { if (!petunjukPergi) { petunjukPergi = true; $('petunjuk').classList.add('pergi'); } };
@@ -277,35 +303,184 @@
     }
   }
 
-  function pilih(i, pelan) {
-    if (!daftar[i]) return;
-    const ganti = () => {
-      aktif = i;
-      const { img, nama } = daftar[i];
-      const w = img.naturalWidth, h = img.naturalHeight, r = w / h;
+  // Hemat memori HP (10 ruang × 2912×1440 terurai ≈ 160 MB di iPhone lama): hanya ruang AKTIF yang memegang gambar terurai
+  // (`img`); ruang lain hanya menyimpan `src` (teks) dan diurai lagi saat dipilih. Gambar yang sudah di tekstur GL tak dibutuhkan lagi.
+  // onload, bukan img.decode(): decode() menggantung selama halaman tersembunyi (tab belakang) — terukur 8/10.
+  const muat = src => new Promise(ok => { const im = new Image(); im.onload = () => ok(im); im.onerror = () => ok(null); im.src = src; });
+  // Ruang yang gambarnya tak terbaca dibuang seolah tak pernah ada (perilaku lama: ruang rusak tak masuk daftar).
+  function buang(d) {
+    const k = daftar.indexOf(d);
+    if (k < 0) return;
+    daftar.splice(k, 1); if (d.kartu) d.kartu.remove(); if (k < aktif) aktif--;
+    if (aktif >= 0) { bangunPanah(); if (tampak) tampil(); }
+  }
+  // arah = {yaw, pitch} sudut pandang tiba (dari panah/denah); tanpa arah, sudut pandang tetap (kartu & angka).
+  // Hasil true bila ruang tampil. `tukar` = nomor permintaan terbaru: pemuatan yang disalip permintaan lebih baru dibuang.
+  async function pilih(i, pelan, arah) {
+    const d = daftar[i];
+    if (!d || rekam) return false;   // video sedang direkam: jangan tukar gambar di tengah
+    const saya = ++tukar, t = $('tirai');
+    // pindah ruang dari kartu: layar menggelap sekejap, bukan meloncat (jendela ARA & pesan: langsung)
+    const tirai = !!pelan && aktif >= 0 && !polos();
+    if (tirai) t.classList.add('tutup');
+    const im = d.img || await muat(d.src);   // ruang aktif sudah memegang gambarnya → jalur serempak (tanpa await)
+    if (tirai) await new Promise(r => requestAnimationFrame(r));
+    if (saya !== tukar) return false;   // disalip permintaan lebih baru: dialah yang melepas tirai
+    if (!im) { info.textContent = `Gagal membaca ${d.nama}`; buang(d); }
+    else if (!rekam) {
+      const k = daftar.indexOf(d), lama = daftar[aktif];
+      aktif = k;
+      if (lama && lama !== d) lama.img = null;   // ruang yang ditinggalkan melepas gambar terurainya
+      d.img = im; d.w = im.naturalWidth; d.h = im.naturalHeight;
+      if (arah) { yaw = arah.yaw; pitch = arah.pitch; if (gerak) dasar = null; }   // sensor HP: patok ulang ke arah baru
+      const w = d.w, h = d.h, r = w / h;
       if (gl2 && w <= MAKS && h <= MAKS) {
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, im);
         gl.uniform2f(uUkuran, w, h);
       } else {
         const tw = gl2 ? Math.min(MAKS, w) : Math.min(MAKS, 2 ** Math.ceil(Math.log2(Math.max(2, w))));
         if (kerja.width !== tw) { kerja.width = tw; kerja.height = tw / 2; }
-        ctx.drawImage(img, 0, 0, kerja.width, kerja.height);
+        ctx.drawImage(im, 0, 0, kerja.width, kerja.height);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, kerja);
         gl.uniform2f(uUkuran, kerja.width, kerja.height);
       }
-      info.textContent = `${nama} · ${w}×${h} · rasio ${r.toFixed(2)}:1` + (Math.abs(r - 2) > 0.02 ? ' — diregangkan ke 2:1' : '');
-      $('j-ruang').textContent = nama;
-      $('j-ke').textContent = daftar.length > 1 ? `Ruang ${i + 1} dari ${daftar.length}` : '';
-      [...daftarEl.children].forEach((b, k) => b.setAttribute('aria-pressed', String(k === i)));
-      minta();
-    };
-    // pindah ruang dari kartu: layar menggelap sekejap, bukan meloncat (jendela ARA & pesan: langsung)
-    if (!pelan || aktif < 0 || polos()) return ganti();
-    const t = $('tirai'); t.classList.add('tutup');
-    requestAnimationFrame(() => { ganti(); requestAnimationFrame(() => t.classList.remove('tutup')); });
+      info.textContent = `${d.nama} · ${w}×${h} · rasio ${r.toFixed(2)}:1` + (Math.abs(r - 2) > 0.02 ? ' — diregangkan ke 2:1' : '');
+      $('j-ruang').textContent = d.nama;
+      $('j-ke').textContent = daftar.length > 1 ? `Ruang ${k + 1} dari ${daftar.length}` : '';
+      [...daftarEl.children].forEach((b, n) => b.setAttribute('aria-pressed', String(n === k)));
+      bangunPanah(); minta();
+    }
+    if (t.classList.contains('tutup')) requestAnimationFrame(() => t.classList.remove('tutup'));
+    return !!im && !rekam;
   }
 
-  // sampul kartu ruang = potongan "depan" panorama (tengah, ¼ lebar)
+  // ── Tur virtual (hanya mode klien). Meta ruang: pos [x,y,z] meter dunia SketchUp (z atas), depan [x,y] = arah datar kolom
+  // TENGAH panorama, grup = model asal. Kanan panorama = kanan(depan) = (depan.y, -depan.x). Panah & denah dihitung di sini dari
+  // posisi (bukan disimpan). Meta tak sah dibuang diam-diam — ruang tetap tampil, hanya tanpa panah.
+  const angka = v => typeof v === 'number' && isFinite(v);
+  function metaBersih(m) {
+    const o = {};
+    if (!m || typeof m !== 'object') return o;
+    if (Array.isArray(m.pos) && m.pos.length === 3 && m.pos.every(v => angka(v) && Math.abs(v) <= 100000)) o.pos = m.pos.slice();
+    if (Array.isArray(m.depan) && m.depan.length === 2 && m.depan.every(angka)) {
+      const l = Math.hypot(m.depan[0], m.depan[1]);
+      if (isFinite(l) && l > 1e-6) o.depan = [m.depan[0] / l, m.depan[1] / l];
+    }
+    if (Number.isInteger(m.grup) && m.grup >= 0 && m.grup <= 99) o.grup = m.grup;
+    return o;
+  }
+  // Panah dari ruang a: maks 4 ruang terdekat (jarak datar 0,3-40 m) di grup yang sama; keduanya tanpa grup = sama.
+  // pitch = ke titik lantai di bawah mata ruang tujuan (mata 1,4 m), dijepit supaya panah tetap di bidang pandang wajar.
+  function kandidatPanah(a) {
+    const A = daftar[a];
+    if (!A || !A.pos || !A.depan) return [];
+    const kanan = [A.depan[1], -A.depan[0]], hasil = [];
+    daftar.forEach((B, k) => {
+      if (k === a || !B.pos || B.grup !== A.grup) return;
+      const vx = B.pos[0] - A.pos[0], vy = B.pos[1] - A.pos[1], jarak = Math.hypot(vx, vy);
+      if (!(jarak >= 0.3 && jarak <= 40)) return;
+      hasil.push({ ke: k, jarak, yaw: Math.atan2(vx * kanan[0] + vy * kanan[1], vx * A.depan[0] + vy * A.depan[1]),
+        pitch: Math.max(-0.75, Math.min(0.35, Math.atan2(B.pos[2] - A.pos[2] - 1.4, jarak))) });
+    });
+    return hasil.sort((p, q) => p.jarak - q.jarak).slice(0, 4);
+  }
+  // Pindah ke ruang j lewat panah/denah: tirai + menghadap arah jalan (dari A ke B, diukur di panorama B).
+  function pergi(j) {
+    const A = daftar[aktif], B = daftar[j];
+    if (!A || !B || j === aktif) return false;
+    sentuh();
+    let arah = null;
+    if (A.pos && B.pos && B.depan) {
+      const vx = B.pos[0] - A.pos[0], vy = B.pos[1] - A.pos[1];
+      if (Math.hypot(vx, vy) > 1e-6) arah = { yaw: Math.atan2(vx * B.depan[1] - vy * B.depan[0], vx * B.depan[0] + vy * B.depan[1]), pitch: 0 };
+    }
+    pilih(j, true, arah);
+    return true;
+  }
+
+  const panahEl = $('panahan'), denahEl = $('denah'), denahSvg = $('denah-svg');
+  const IK_PANAH = '<path d="M12 19V5M12 5L6 11M12 5L18 11"/>';   // coolicons Arrow_Up_MD
+  let panahAktif = [], kipas = null, titikAktif = null, titikDenah = [];
+  function bangunPanah() {
+    panahEl.textContent = '';
+    panahAktif = kandidatPanah(aktif).map((p, urut) => {
+      const nama = daftar[p.ke].nama, b = document.createElement('button'), n = document.createElement('span');
+      b.className = 'panah bulat kaca'; b.hidden = true; b.title = nama; b.setAttribute('aria-label', 'Pindah ke ' + nama);
+      b.style.zIndex = String(50 - urut);   // ruang segaris: panah terdekat (paling bawah di layar) di atas, ketukannya tak dicuri yang jauh
+      b.innerHTML = '<svg class="ik" viewBox="0 0 24 24">' + IK_PANAH + '</svg>';
+      n.className = 'nm kaca'; n.textContent = nama; b.appendChild(n);
+      b.onclick = () => pergi(p.ke);
+      panahEl.appendChild(b);
+      return Object.assign(p, { el: b, x: null, y: null, tampak: false });
+    });
+    bangunDenah();
+  }
+  // Balik PERSIS rumus shader (FS): arah panorama (yaw, pitch) -> sinar dunia -> putar balik yaw lalu pitch -> ruang kamera
+  // -> piksel layar (CSS px). Di belakang kamera (z <= 0,05) atau di luar layar = disembunyikan.
+  function aturPanah() {
+    if (!panahAktif.length) return;
+    const W = kanvas.clientWidth, H = kanvas.clientHeight, ok = !polos() && W > 0 && H > 0 && kanvas.width > 0 && kanvas.height > 0;
+    const tn = Math.tan(fov / 2), asp = kanvas.width / kanvas.height;
+    const cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
+    for (const p of panahAktif) {
+      const k = Math.cos(p.pitch);
+      let dx = Math.sin(p.yaw) * k, dy = Math.sin(p.pitch), dz = Math.cos(p.yaw) * k;
+      [dx, dz] = [dx * cy - dz * sy, dx * sy + dz * cy];
+      [dy, dz] = [dy * cp - dz * sp, dy * sp + dz * cp];
+      p.tampak = false; p.x = p.y = null;
+      if (ok && dz > 0.05) {
+        p.x = (dx / (dz * tn * asp) * 0.5 + 0.5) * W; p.y = (0.5 - dy / (dz * tn) * 0.5) * H;
+        p.tampak = p.x >= 0 && p.x <= W && p.y >= 0 && p.y <= H;
+      }
+      p.el.hidden = !p.tampak;
+      if (p.tampak) { p.el.style.transform = `translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px)`; p.el.classList.toggle('kiri', p.x > W * 0.62); }
+    }
+  }
+  // Denah mini: ruang ber-pos di grup ruang aktif, x dunia -> kanan, y dunia -> atas layar, skala seragam. Tampil bila >= 2 ruang.
+  function unsur(tag, atr) { const e = document.createElementNS('http://www.w3.org/2000/svg', tag); for (const k in atr) e.setAttribute(k, atr[k]); return e; }
+  function bangunDenah() {
+    denahSvg.textContent = ''; kipas = null; titikAktif = null; titikDenah = [];
+    const A = daftar[aktif], grup = A && A.pos ? daftar.map((r, k) => ({ r, k })).filter(o => o.r.pos && o.r.grup === A.grup) : [];
+    denahEl.hidden = grup.length < 2;
+    if (denahEl.hidden) return;
+    const xs = grup.map(o => o.r.pos[0]), ys = grup.map(o => o.r.pos[1]);
+    const x0 = Math.min(...xs), y0 = Math.min(...ys), lx = Math.max(...xs) - x0, ly = Math.max(...ys) - y0, S = 132 - 2 * 22;
+    const sk = Math.min(lx > 0 ? S / lx : Infinity, ly > 0 ? S / ly : Infinity), skala = isFinite(sk) ? sk : 1;   // semua di satu titik: skala bebas
+    const ox = (132 - lx * skala) / 2, oy = (132 - ly * skala) / 2;
+    if (A.depan) { kipas = unsur('path', { class: 'kipas' }); denahSvg.appendChild(kipas); }
+    for (const { r, k } of grup) {
+      const cx = ox + (r.pos[0] - x0) * skala, cy = 132 - (oy + (r.pos[1] - y0) * skala), ini = k === aktif;
+      const g = unsur('g', { class: ini ? 'titik aktif' : 'titik' }), ju = unsur('title', {});
+      ju.textContent = r.nama;
+      g.append(ju, unsur('circle', { class: 'noktah', cx, cy, r: 5 }));
+      titikDenah.push({ k, cx, cy });
+      if (ini) titikAktif = [cx, cy];
+      else {
+        g.setAttribute('tabindex', '0'); g.setAttribute('role', 'button'); g.setAttribute('aria-label', 'Pindah ke ' + r.nama);
+        g.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pergi(k); } };
+      }
+      denahSvg.appendChild(g);
+    }
+    aturDenah();
+  }
+  // Ketuk = titik TERDEKAT dalam 18 px (bukan lingkaran per titik: ruang berdekatan di denah saling menutupi, yang di atas mencuri ketukan).
+  denahEl.addEventListener('click', e => {
+    const r = denahSvg.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+    let terdekat = null, jarak = 18;
+    for (const o of titikDenah) { const d = Math.hypot(o.cx - x, o.cy - y); if (d < jarak) { jarak = d; terdekat = o; } }
+    if (terdekat && terdekat.k !== aktif) pergi(terdekat.k);
+  });
+  // Kipas arah pandang: arahDunia = depan*cos(yaw) + kanan*sin(yaw); layar y terbalik terhadap y dunia.
+  function aturDenah() {
+    const A = daftar[aktif];
+    if (!kipas || !titikAktif || !A || !A.depan) return;
+    const [dx, dy] = A.depan, wx = dx * Math.cos(yaw) + dy * Math.sin(yaw), wy = dy * Math.cos(yaw) - dx * Math.sin(yaw);
+    const a = Math.atan2(-wy, wx), asp = kanvas.height > 0 ? kanvas.width / kanvas.height : 1;
+    const h = Math.max(0.2, Math.min(1.3, Math.atan(Math.tan(fov / 2) * asp))), R = 22, [cx, cy] = titikAktif;
+    kipas.setAttribute('d', `M${cx} ${cy}L${(cx + R * Math.cos(a - h)).toFixed(1)} ${(cy + R * Math.sin(a - h)).toFixed(1)}A${R} ${R} 0 0 1 ${(cx + R * Math.cos(a + h)).toFixed(1)} ${(cy + R * Math.sin(a + h)).toFixed(1)}Z`);
+  }
+
+  // sampul kartu ruang = potongan "depan" panorama (tengah, ¼ lebar). Berkas lama / foto biasa tak membawa sampul → dibuat di sini.
   function sampul(img) {
     try {
       const c = document.createElement('canvas'); c.width = 256; c.height = 144;
@@ -314,23 +489,32 @@
       return c.toDataURL('image/jpeg', 0.8);
     } catch (_) { return ''; }
   }
+  // Sampul kiriman ARA (JPEG data: ≤ 60000 karakter; aturan sama dgn js/panorama-main.js) -> dipakai apa adanya sbg latar kartu.
+  const sampulSah = s => typeof s === 'string' && s.length <= 60000 && /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(s) ? s : '';
 
-  async function tambah(nama, src) {
-    // onload, bukan img.decode(): decode() menggantung selama halaman tersembunyi (tab belakang),
-    // walau gambar sudah termuat — terukur 8/10, daftar gambar tak pernah muncul.
-    const img = new Image();
-    try { await new Promise((ok, gagal) => { img.onload = ok; img.onerror = gagal; img.src = src; }); }
-    catch (_) { info.textContent = `Gagal membaca ${nama}`; return false; }
-    daftar.push({ nama, img });
+  // meta = {pos, depan, grup, sampul} (semua opsional: pos/depan/grup divalidasi metaBersih, sampul oleh sampulSah) -> panah, denah, kartu.
+  // Ruang tanpa meta tampil seperti biasa. Hanya ruang pertama (langsung tampil) yang pasti diurai; ruang lain TIDAK diurai bila
+  // membawa sampul (atau di jendela ARA yang tanpa kartu) — tanpa sampul (berkas lama, foto biasa) diurai SEKALI utk membuat kartu
+  // lalu dilepas. Gambar rusak: ruang tak ditambahkan (ruang berbekal sampul yang rusak baru ketahuan saat dipilih → pilih() membuangnya).
+  async function tambah(nama, src, meta) {
+    const pertama = aktif < 0;
+    let kecil = sampulSah(meta && meta.sampul), im = null;
+    if (pertama || (!kecil && !polos())) {
+      im = await muat(src);
+      if (!im) { info.textContent = `Gagal membaca ${nama}`; return false; }
+      if (!kecil && !polos()) kecil = sampul(im);
+    }
+    const d = Object.assign({ nama, src, img: pertama ? im : null, w: 0, h: 0, kartu: null }, metaBersih(meta));
+    daftar.push(d);
     const b = document.createElement('button');
     b.className = 'kartu'; b.setAttribute('aria-pressed', 'false');
     const g = document.createElement('span'), n = document.createElement('span');
     g.className = 'gbr'; n.className = 'nm'; n.textContent = nama;
-    if (!polos()) { const s = sampul(img); if (s) g.style.backgroundImage = `url(${s})`; }
-    b.append(g, n);
-    const i = daftar.length - 1; b.onclick = () => { sentuh(); pilih(i, true); };
+    if (kecil) g.style.backgroundImage = `url(${kecil})`;
+    b.append(g, n); d.kartu = b;
+    b.onclick = () => { sentuh(); pilih(daftar.indexOf(d), true); };
     daftarEl.appendChild(b);
-    if (aktif < 0) pilih(i);
+    if (pertama) await pilih(daftar.indexOf(d)); else bangunPanah();   // ruang baru bisa jadi tujuan panah ruang aktif
     return true;
   }
 
@@ -349,7 +533,7 @@
         if (z < 0) continue;
         const mi = 'window.PANORAMA_INFO = ', ai = teks.indexOf(mi + '{'), zi = ai < 0 ? -1 : teks.indexOf(';<\/script>', ai);
         if (zi > 0) try { const d = JSON.parse(teks.slice(ai + mi.length, zi)); INFO.judul = String(d.judul || '').slice(0, 120); INFO.studio = String(d.studio || '').slice(0, 80); } catch (_) {}
-        for (const p of JSON.parse(teks.slice(a + m.length, z))) if (p && /^data:image\//.test(String(p.src)) && await tambah(String(p.nama || 'Panorama').slice(0, 80), p.src)) ok++;
+        for (const p of JSON.parse(teks.slice(a + m.length, z))) if (p && /^data:image\//.test(String(p.src)) && await tambah(String(p.nama || 'Panorama').slice(0, 80), p.src, p)) ok++;   // p membawa pos/depan/grup/sampul (divalidasi ulang)
       } catch (_) { /* berkas rusak → lewati, pesan di bawah */ }
     }
     if (ok) tampil();
@@ -396,14 +580,32 @@
     $('b-penuh').hidden = false;
     $('b-penuh').onclick = () => { usir(); (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()).catch(() => {}); };
   }
-  // ponytail: arah HP disederhanakan untuk posisi tegak (alpha → kiri/kanan, beta → atas/bawah) — HP miring/rebah
-  // terasa aneh; ganti ke matriks rotasi penuh bila ada keluhan. Belum diuji di HP sungguhan.
-  let dasar = null;
+  // Arah HP -> {yaw, pitch}. Fungsi murni (diuji angka di scripts/test-panorama-360-tur.cjs). Sudut W3C DeviceOrientation (derajat), urutan
+  // Z-X'-Y'': R = Rz(alpha) Rx(beta) Ry(gamma) membawa sumbu HP (x kanan, y atas layar, z keluar layar) ke bumi (x timur, y utara, z atas).
+  // Kamera = BELAKANG layar (-z HP) = arah pandang; "atas layar" = (sin s, cos s, 0) di sumbu HP, s = sudut layar (screen.orientation.angle,
+  // 90 = HP diputar berlawanan jarum jam). Gulir (roll) diabaikan: pemutar selalu menjaga cakrawala.
+  // yaw = bearing kompas arah pandang (rad, searah jarum jam dari utara: badan menoleh ke kanan -> naik), pitch = + menengadah.
+  // Euler mentah (yaw = -alpha, pitch = beta - 90) salah begitu HP landscape/miring atau beta ~ 90 (alpha & gamma saling menukar).
+  // ponytail: dekat tegak lurus ke atas/bawah (HP rebah) arah pandang tak punya bearing -> dipinjam dari atas-layar, dicampur halus
+  // untuk cos(pitch) 0,25 -> 0,05; di zona itu gulir HP ikut menggeser yaw (tak terhindarkan), di luar zona yaw bebas gulir.
+  function arahHP(alpha, beta, gamma, sudutLayar) {
+    const r = Math.PI / 180, a = alpha * r, b = beta * r, g = gamma * r, s = (sudutLayar || 0) * r;
+    const cA = Math.cos(a), sA = Math.sin(a), cB = Math.cos(b), sB = Math.sin(b), cG = Math.cos(g), sG = Math.sin(g);
+    const M = [[cA * cG - sA * sB * sG, -cB * sA, cG * sA * sB + cA * sG], [cG * sA + cA * sB * sG, cA * cB, sA * sG - cA * cG * sB], [-cB * sG, sB, cB * cG]];
+    const dunia = v => M.map(m => m[0] * v[0] + m[1] * v[1] + m[2] * v[2]);
+    const [lx, ly, lz] = dunia([0, 0, -1]), [ux, uy] = dunia([Math.sin(s), Math.cos(s), 0]);
+    const hl = Math.hypot(lx, ly), hu = Math.hypot(ux, uy), w = Math.max(0, Math.min(1, (0.25 - hl) / 0.2)), t = lz < 0 ? 1 : -1;
+    let hx = hl > 1e-9 ? lx / hl : 0, hy = hl > 1e-9 ? ly / hl : 0;   // bearing dari arah pandang…
+    if (w > 0 && hu > 1e-9) { hx = (1 - w) * hx + w * t * ux / hu; hy = (1 - w) * hy + w * t * uy / hu; }   // …atau dari atas-layar (menunduk: searah; menengadah: berlawanan)
+    return { yaw: Math.atan2(hx, hy), pitch: Math.asin(Math.max(-1, Math.min(1, lz))) };
+  }
+  const sudutLayar = () => (screen.orientation && typeof screen.orientation.angle === 'number' ? screen.orientation.angle : Number(window.orientation)) || 0;
+  let dasar = null;   // {h, yaw}: bearing HP & yaw pemutar saat sensor dinyalakan -> tampilan saat itu dipertahankan
   function sensor(e) {
-    if (e.alpha == null || e.beta == null) return;
-    const a = e.alpha * Math.PI / 180;
-    if (!dasar) dasar = { a, yaw };
-    yaw = dasar.yaw - (a - dasar.a); pitch = (e.beta - 90) * Math.PI / 180; jepit(); minta();
+    if (e.alpha == null || e.beta == null || e.gamma == null) return;
+    const a = arahHP(e.alpha, e.beta, e.gamma, sudutLayar());
+    if (!dasar) dasar = { h: a.yaw, yaw };
+    yaw = dasar.yaw + (a.yaw - dasar.h); pitch = a.pitch; jepit(); minta();
   }
   if (typeof DeviceOrientationEvent !== 'undefined' && matchMedia('(pointer: coarse)').matches) {
     $('b-gerak').hidden = false;
@@ -418,14 +620,85 @@
 
   (async () => {
     const isi = window.PANORAMA_DAFTAR || [];
-    for (const p of isi) await tambah(p.nama, p.src);
+    for (const p of isi) await tambah(p.nama, p.src, { pos: p.pos, depan: p.depan, grup: p.grup, sampul: p.sampul });
     if (daftar.length) tampil();
     else if (!polos()) $('sambut').hidden = false;   // ARA Viewer: belum ada berkas
     minta();
   })();
+  // ── Video putar 360 (hanya dari jendela ARA, lewat pesan 'video'). Satu putaran penuh selama `detik` mulai dari arah yang
+  // tampak; bingkai = GL digambar sebesar video -> kanvas 2D + teks -> captureStream(30) -> MediaRecorder. Waktu = jam dinding;
+  // diatur setTimeout (rAF berhenti saat halaman tersembunyi). Selama merekam, `rekam` menahan gambar()/putar-otomatis/pilih.
+  const MIME_VIDEO = ['video/mp4;codecs=avc1.640028', 'video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'];
+  // Kelipatan 16 (blok H.264): 1080 lebar → pengode menambal 8 px yang bocor jadi garis HIJAU di tepi kanan (terukur 10/10).
+  const genap = (v, bawaan) => { v = Number(v); if (!isFinite(v)) v = bawaan; return Math.max(16, Math.min(1920, Math.round(v / 16) * 16)); };
+  async function rekamVideo(m, tujuan) {
+    const kirim = (o, alih) => { try { tujuan.postMessage(Object.assign({ ara: 'panorama', id: m.id }, o), '*', alih || []); } catch (_) {} };
+    const galat = s => kirim({ t: 'video-hasil', galat: s });
+    if (rekam) return galat('sibuk');
+    if (aktif < 0) return galat('Belum ada gambar panorama');
+    if (typeof MediaRecorder === 'undefined' || !HTMLCanvasElement.prototype.captureStream) return galat('Perekam video tidak tersedia di browser ini');
+    rekam = true; document.body.classList.add('rekam');
+    const w = genap(m.w, 1280), h = genap(m.h, 720), total = Math.max(2, Math.min(60, Number(m.detik) || 20)) * 1000;
+    const nama = daftar[aktif].nama, judul = String(m.judul || '').slice(0, 120), y0 = yaw;
+    const kertas = document.createElement('canvas'); kertas.width = w; kertas.height = h;
+    const c2 = kertas.getContext('2d'), tn = Math.tan((h > w ? 100 : 70) * Math.PI / 360);   // fov tegak 100 derajat (potret) / 70 (datar)
+    const fs = Math.round(Math.min(w, h) * 0.035), tepi = Math.round(fs * 1.2), dasarTeks = h - tepi, lebar = w * 0.62, FONT = '"Geist", system-ui, -apple-system, "Segoe UI", sans-serif';   // tumpukan huruf & warna = token pemutar (--teks, --panel)
+    const gelap = c2.createLinearGradient(0, h * 0.78, 0, h); gelap.addColorStop(0, 'rgba(18,18,20,0)'); gelap.addColorStop(1, 'rgba(18,18,20,.66)');
+    let rec = null, aliran = null, salah = null;
+    try {
+      kanvas.width = w; kanvas.height = h; gl.viewport(0, 0, w, h);
+      const lukis = sudut => {
+        gl.uniform1f(uYaw, sudut); gl.uniform1f(uPitch, 0); gl.uniform1f(uT, tn); gl.uniform1f(uAspek, w / h);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        c2.drawImage(kanvas, 0, 0);
+        c2.fillStyle = gelap; c2.fillRect(0, h * 0.78, w, h * 0.22);
+        c2.shadowColor = 'rgba(0,0,0,.7)'; c2.shadowBlur = Math.max(2, fs / 10); c2.shadowOffsetY = 1;   // seperti .kredit
+        c2.textAlign = 'left'; c2.textBaseline = 'alphabetic'; c2.fillStyle = '#ECEBE6'; c2.font = `700 ${fs}px ${FONT}`;
+        c2.fillText(nama, tepi, judul ? dasarTeks - Math.round(fs * 1.15) : dasarTeks, lebar);
+        if (judul) { c2.font = `500 ${Math.round(fs * 0.72)}px ${FONT}`; c2.fillStyle = '#ECEBE6'; c2.fillText(judul, tepi, dasarTeks, lebar); }
+        c2.textAlign = 'right'; c2.font = `500 ${Math.round(fs * 0.62)}px ${FONT}`; c2.fillStyle = 'rgba(236,235,230,.85)'; c2.fillText('Dibuat dengan ARA', w - tepi, dasarTeks);
+        c2.shadowColor = 'transparent';
+      };
+      lukis(y0);   // bingkai pertama ADA sebelum perekam jalan
+      const mime = typeof MediaRecorder.isTypeSupported === 'function' ? MIME_VIDEO.find(t => MediaRecorder.isTypeSupported(t)) || '' : '';
+      aliran = kertas.captureStream(30);
+      // 5 Mbps: 20 dtk ±12,5 MB — di bawah batas kirim video WA (16 MB); putaran pelan tak butuh lebih
+      rec = new MediaRecorder(aliran, Object.assign({ videoBitsPerSecond: 5e6 }, mime ? { mimeType: mime } : {}));
+      const potongan = [], henti = new Promise(ok => { rec.onstop = ok; });
+      rec.ondataavailable = e => { if (e.data && e.data.size) potongan.push(e.data); };
+      rec.onerror = e => { salah = (e && e.error) || new Error('Perekam video gagal'); };
+      rec.start(1000);
+      const t0 = performance.now(); let lapor = -1e9;
+      await new Promise(selesai => {
+        const langkah = () => {
+          const t = performance.now(), p = Math.min(1, (t - t0) / total);
+          lukis(y0 + p * 2 * Math.PI);
+          if (t - lapor >= 250) { lapor = t; kirim({ t: 'video-progres', p }); }
+          if (p >= 1 || salah) return selesai();
+          setTimeout(langkah, Math.max(0, 1000 / 30 - (performance.now() - t)));
+        };
+        langkah();
+      });
+      await new Promise(r => setTimeout(r, 120));   // beri waktu pengode menerima bingkai terakhir
+      if (rec.state !== 'inactive') rec.stop();
+      await Promise.race([henti, new Promise((_, gagal) => setTimeout(() => gagal(new Error('Perekam tak berhenti')), 10000))]);
+      if (salah) throw salah;
+      const jenis = rec.mimeType || mime || 'video/webm', blob = new Blob(potongan, { type: jenis });
+      if (!blob.size) throw new Error('Video kosong');
+      const buf = await blob.arrayBuffer();
+      kirim({ t: 'video-hasil', mime: jenis, buf }, [buf]);
+    } catch (err) {
+      galat(String((err && err.message) || err || 'Perekam video gagal'));
+    } finally {
+      try { if (rec && rec.state !== 'inactive') rec.stop(); } catch (_) {}
+      if (aliran) aliran.getTracks().forEach(t => t.stop());
+      rekam = false; document.body.classList.remove('rekam'); gambar();   // ukuran layar, sudut & zoom (tak pernah diubah) kembali
+    }
+  }
+
   // Jendela Panorama 360 di ARA memakai berkas ini di <iframe>; file:// antar-bingkai = asal berbeda → pesan.
   // Hanya gambar data: yang diterima; isinya cuma ditampilkan, tak pernah dijalankan.
-  function kosongkan() { daftar.length = 0; aktif = -1; daftarEl.textContent = ''; info.textContent = ''; minta(); }
+  function kosongkan() { tukar++; daftar.length = 0; aktif = -1; daftarEl.textContent = ''; info.textContent = ''; bangunPanah(); minta(); }
   // Hanya dari jendela yang MEMUAT halaman ini (jendela ARA). Asal tak bisa dicocokkan — file:// = 'null' — jadi pengirimnya
   // yang dicek; balasan 'potong' pun hanya ke pengirim itu. Halaman yang dibuka langsung (ekspor, ARA Viewer) tak menerima pesan.
   addEventListener('message', async e => {
@@ -438,16 +711,20 @@
     }
     // Balasan hanya ke peminta; isinya potongan gambar yang memang sedang ditampilkan halaman ini.
     if (m.t === 'potong' && e.source) { e.source.postMessage({ ara: 'panorama', t: 'potongan', id: m.id, dataUrl: potong(Math.min(4096, Number(m.panjang) || 1600)) }, '*'); return; }
+    if (m.t === 'video' && e.source) { rekamVideo(m, e.source); return; }   // balasan hanya ke peminta (induk)
     if (m.t === 'kosong') kosongkan();
     else if (m.t === 'tambah' && Array.isArray(m.daftar)) {
       if (m.ganti) kosongkan();
       for (const p of m.daftar) if (p && /^data:image\//.test(String(p.src))) await tambah(String(p.nama || 'Panorama').slice(0, 80), p.src);
-      if (typeof m.pilih === 'number') pilih(Math.min(m.pilih, daftar.length - 1));
+      if (typeof m.pilih === 'number') await pilih(Math.min(m.pilih, daftar.length - 1));
       tampil();
     }
   });
-  window.Panorama360Pemutar = { pilih, bukaBerkas, arah: (y, p, f) => { yaw = y; pitch = p; if (f) fov = f; jepit(); gambar(); },
-    keadaan: () => ({ yaw, pitch, fov, aktif, ruang: daftar.length, putar, polos: polos() }) };
+  window.Panorama360Pemutar = { pilih, bukaBerkas, pergi, arahHP, sensor, arah: (y, p, f) => { yaw = y; pitch = p; if (f) fov = f; jepit(); gambar(); },
+    keadaan: () => ({ yaw, pitch, fov, aktif, ruang: daftar.length, putar, polos: polos(), rekam, denah: !denahEl.hidden && !polos(),
+      termuat: daftar.filter(d => d.img).length,   // jumlah gambar terurai yang sedang dipegang (hemat memori: ≤ 1)
+      titik: denahSvg.querySelectorAll('.titik').length,
+      panah: panahAktif.map(p => ({ ke: p.ke, yaw: p.yaw, pitch: p.pitch, x: p.x, y: p.y, tampak: p.tampak })) }) };
 })();
 </script>
 </body>
