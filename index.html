@@ -1,0 +1,454 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-VDVDNNRTREupwUTWnq6itaNdc1TFEVFbXV4xlAS7Gow=' 'sha256-ArXGotQ3u4H89vkJjv/Zw2CQUMcnVeymQPWQ87Rz1Pw='; style-src 'sha256-qeHhPGEyQblKy486aYhRawleb8bJNnidqNHnEqF055M='; img-src data: blob:; base-uri 'none'; form-action 'none'">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ARA Viewer — lihat desain ruangan dalam 360°</title>
+<meta name="description" content="Buka berkas panorama 360 dari desainer Anda, lalu geser atau putar HP. Berkas tetap di HP Anda — tidak diunggah.">
+<meta name="theme-color" content="#121214">
+<meta property="og:type" content="website">
+<meta property="og:title" content="ARA Viewer — lihat desain ruangan dalam 360°">
+<meta property="og:description" content="Buka berkas panorama 360 dari desainer Anda, lalu geser atau putar HP. Berkas tetap di HP Anda — tidak diunggah.">
+<meta property="og:url" content="https://gigihwicaksono09-spec.github.io/ara-viewer/">
+<meta property="og:image" content="https://gigihwicaksono09-spec.github.io/ara-viewer/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23D5F24B'/%3E%3Ctext x='16' y='23' font-family='system-ui,sans-serif' font-size='20' font-weight='800' text-anchor='middle' fill='%23131603'%3EA%3C/text%3E%3C/svg%3E">
+<script>document.documentElement.className = 'js';</script>
+<style>
+  /* Warna = token bento ARA (css/bento.css: bingkai #121214, ubin #1B1B1E, tinta #ECEBE6, lime #D5F24B) — berkas ini
+     juga dikirim ke klien, jadi berdiri sendiri tanpa CSS app. */
+  :root { --bg: #121214; --panel: rgba(18, 18, 20, .66); --ubin: #1B1B1E; --garis: rgba(236, 235, 230, .14); --teks: #ECEBE6; --redup: #A3A29C;
+          --aksen: #D5F24B; --aksen-tinta: #131603; --aman-a: env(safe-area-inset-top, 0px); --aman-b: env(safe-area-inset-bottom, 0px); }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }   /* aturan display di bawah tak boleh mengalahkan [hidden] */
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--teks); font: 14px/1.45 "Geist", system-ui, -apple-system, "Segoe UI", sans-serif; }
+  html.js body { overflow: hidden; }
+  svg.ik { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+  .kaca { background: var(--panel); border: 1px solid var(--garis); -webkit-backdrop-filter: blur(14px) saturate(1.2); backdrop-filter: blur(14px) saturate(1.2); }
+
+  /* Tampilan cadangan (hanya di berkas ekspor): TERLIHAT bila skrip tak jalan, mis. pratinjau iPhone dari WA/Files. */
+  .cadangan { display: none; max-width: 720px; margin: 0 auto; padding: 24px 16px 40px; }
+  html:not(.js) .cadangan { display: block; }
+  html:not(.js) body > :not(.cadangan) { display: none !important; }
+  .cadangan .label { color: var(--aksen); font-weight: 700; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
+  .cadangan h1 { font-size: 24px; line-height: 1.2; margin: 6px 0 2px; }
+  .cadangan .studio { color: var(--redup); margin: 0 0 16px; }
+  .cadangan img { width: 100%; border-radius: 14px; display: block; border: 1px solid var(--garis); }
+  .cadangan .ruang { color: var(--redup); font-size: 13px; margin: 8px 0 20px; }
+  .cadangan .kotak { border: 1px solid var(--garis); border-radius: 16px; padding: 16px; background: var(--ubin); }
+  .cadangan .kotak b { font-size: 16px; }
+  .cadangan ol { margin: 8px 0 0; padding-left: 20px; }
+  .cadangan li { margin: 4px 0; }
+  .cadangan .tautan { color: var(--aksen); font-weight: 700; word-break: break-all; }
+
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; cursor: grab; touch-action: none; }
+  canvas.seret { cursor: grabbing; }
+  .tirai { position: fixed; inset: 0; background: var(--bg); opacity: 0; pointer-events: none; transition: opacity .35s ease; }
+  .tirai.tutup { opacity: 1; transition: none; }
+  body.jatuh::after { content: ""; position: fixed; inset: 12px; border: 2px dashed var(--aksen); border-radius: 12px; pointer-events: none; }
+
+  /* Lapisan klien — di jendela ARA (body.polos) semuanya disembunyikan; kontrol milik jendela bento. */
+  body.polos .bilah, body.polos .judul, body.polos .alat, body.polos .petunjuk, body.polos .kredit, body.polos .sambut, body.polos .tirai { display: none !important; }
+  .judul { position: fixed; left: 16px; top: calc(16px + var(--aman-a)); max-width: min(380px, calc(100% - 32px - 148px)); border-radius: 18px; padding: 12px 16px; pointer-events: none; }
+  .judul .proyek { color: var(--redup); font-size: 12px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .judul .ruang { font-size: 20px; font-weight: 700; line-height: 1.2; margin-top: 2px; }
+  .judul .ke { color: var(--aksen); font-size: 12px; font-weight: 600; margin-top: 2px; }
+  .judul .ke:empty { display: none; }
+  .alat { position: fixed; right: 16px; top: calc(16px + var(--aman-a)); display: flex; gap: 8px; }
+  .bulat { width: 44px; height: 44px; border-radius: 999px; display: grid; place-items: center; color: var(--teks); cursor: pointer; font: inherit; padding: 0; }
+  .bulat:hover, .bulat:focus-visible { border-color: var(--aksen); outline: none; }
+  .bulat[aria-pressed="true"] { background: var(--aksen); color: var(--aksen-tinta); border-color: transparent; }
+  .petunjuk { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; align-items: center; gap: 10px; padding: 12px 18px;
+              border-radius: 999px; font-weight: 600; pointer-events: none; transition: opacity .5s ease; white-space: nowrap; }
+  .petunjuk.pergi { opacity: 0; }
+  .petunjuk svg { animation: geser 1.6s ease-in-out infinite; }
+  @keyframes geser { 0%, 100% { transform: translateX(-4px); } 50% { transform: translateX(4px); } }
+  /* bilah = rak kartu ruang (tampil bila ≥2 panorama) */
+  .bilah { position: fixed; left: 0; right: 0; bottom: calc(16px + var(--aman-b)); display: flex; justify-content: center; padding: 0 16px; pointer-events: none; }
+  #daftar { display: flex; gap: 8px; padding: 8px; border-radius: 22px; overflow-x: auto; max-width: 100%; pointer-events: auto; scrollbar-width: none; }
+  #daftar::-webkit-scrollbar { display: none; }
+  .kartu { flex: none; width: 128px; border-radius: 14px; border: 2px solid transparent; background: var(--ubin); color: var(--teks); padding: 0; cursor: pointer; overflow: hidden; text-align: left; font: inherit; }
+  .kartu .gbr { display: block; height: 72px; background: #26262A center / cover no-repeat; }
+  .kartu .nm { display: block; padding: 6px 10px 8px; font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .kartu[aria-pressed="true"] { border-color: var(--aksen); }
+  .kartu:focus-visible { outline: 2px solid var(--aksen); outline-offset: 2px; }
+  .info { display: none; }   /* ukuran & rasio: untuk jendela ARA/uji, tidak untuk klien */
+  .kredit { position: fixed; right: 16px; bottom: calc(16px + var(--aman-b)); font-size: 11px; color: rgba(236, 235, 230, .85); text-shadow: 0 1px 3px rgba(0, 0, 0, .7); pointer-events: none; }
+  body.ada-rak .kredit { bottom: calc(140px + var(--aman-b)); }
+
+  /* ARA Viewer: halaman pembuka bila belum ada gambar */
+  .sambut { position: fixed; inset: 0; display: grid; place-items: center; padding: 16px; overflow-y: auto;
+            background: radial-gradient(1200px 600px at 50% -10%, rgba(213, 242, 75, .10), transparent 60%), var(--bg); }
+  .sambut-kartu { width: 100%; max-width: 420px; border-radius: 24px; padding: 24px; background: var(--ubin); border: 1px solid var(--garis); }
+  .merek { display: flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: .02em; }
+  .merek i { width: 32px; height: 32px; border-radius: 10px; background: var(--aksen); color: var(--aksen-tinta); display: grid; place-items: center; font-style: normal; font-weight: 800; }
+  .sambut h1 { font-size: 24px; line-height: 1.2; margin: 20px 0 8px; }
+  .sambut p { color: var(--redup); margin: 0 0 20px; }
+  .pilih { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; height: 52px; border-radius: 999px; background: var(--aksen); color: var(--aksen-tinta);
+           font-size: 16px; font-weight: 700; cursor: pointer; }
+  .pilih:focus-visible { outline: 2px solid var(--teks); outline-offset: 3px; }
+  .langkah { margin: 20px 0 0; padding: 0; list-style: none; counter-reset: l; }
+  .langkah li { counter-increment: l; display: flex; gap: 12px; margin: 12px 0; }
+  .langkah li::before { content: counter(l); flex: none; width: 24px; height: 24px; border-radius: 999px; border: 1px solid var(--garis); display: grid; place-items: center; font-size: 12px; color: var(--redup); }
+  .privasi { display: flex; gap: 8px; align-items: flex-start; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--garis); color: var(--redup); font-size: 12.5px; }
+  .galat { color: #FF8A7A; font-size: 13px; margin-top: 12px; }
+  .galat:empty { display: none; }
+
+  /* Bingkai "Ambil sudut" (hanya dari jendela ARA): isi bingkai = foto datar yang akan dipotong; luar bingkai diredupkan. */
+  .bingkai { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); border: 2px solid var(--aksen); border-radius: 4px;
+             box-shadow: 0 0 0 100vmax rgba(10, 10, 12, .55); pointer-events: none; }
+  .bingkai span { position: absolute; left: 8px; top: 8px; padding: 4px 9px; border-radius: 999px; background: var(--aksen); color: var(--aksen-tinta); font-weight: 700; font-size: 11.5px; line-height: 1; }
+
+  @media (max-width: 600px) {
+    .judul { padding: 10px 14px; }
+    .judul .ruang { font-size: 17px; }
+    .kartu { width: 104px; }
+    .kartu .gbr { height: 60px; }
+    body.ada-rak .kredit { bottom: calc(126px + var(--aman-b)); }
+  }
+  @media (prefers-reduced-motion: reduce) { .petunjuk svg { animation: none; } .tirai { transition: none; } }
+</style>
+</head>
+<body>
+<canvas id="kanvas"></canvas>
+<div class="tirai" id="tirai"></div>
+<div class="bingkai" id="bingkai" hidden><span id="bingkai-label"></span></div>
+<div class="judul kaca" id="judul" hidden><div class="proyek" id="j-proyek"></div><div class="ruang" id="j-ruang"></div><div class="ke" id="j-ke"></div></div>
+<div class="alat" id="alat" hidden>
+  <button class="bulat kaca" id="b-putar" aria-pressed="false" aria-label="Putar otomatis" title="Putar otomatis"><svg class="ik" viewBox="0 0 24 24" id="ik-putar"></svg></button>
+  <button class="bulat kaca" id="b-gerak" aria-pressed="false" aria-label="Putar HP untuk melihat sekeliling" title="Putar HP untuk melihat sekeliling" hidden><svg class="ik" viewBox="0 0 24 24"><path d="M7 6.2002V17.8002C7 18.9203 7 19.4796 7.21799 19.9074C7.40973 20.2837 7.71547 20.5905 8.0918 20.7822C8.5192 21 9.07899 21 10.1969 21H13.8031C14.921 21 15.48 21 15.9074 20.7822C16.2837 20.5905 16.5905 20.2837 16.7822 19.9074C17 19.48 17 18.921 17 17.8031V6.19691C17 5.07899 17 4.5192 16.7822 4.0918C16.5905 3.71547 16.2837 3.40973 15.9074 3.21799C15.4796 3 14.9203 3 13.8002 3H10.2002C9.08009 3 8.51962 3 8.0918 3.21799C7.71547 3.40973 7.40973 3.71547 7.21799 4.0918C7 4.51962 7 5.08009 7 6.2002Z"/></svg></button>
+  <button class="bulat kaca" id="b-penuh" aria-label="Layar penuh" title="Layar penuh" hidden><svg class="ik" viewBox="0 0 24 24"><path d="M10 19H5V14M14 5H19V10"/></svg></button>
+</div>
+<div class="petunjuk kaca" id="petunjuk" hidden><svg class="ik" viewBox="0 0 24 24"><path d="M3 12H21M3 12L6 15M3 12L6 9M21 12L18 9M21 12L18 15"/></svg>Geser untuk melihat sekeliling</div>
+<div class="bilah" id="rak" hidden><div class="kaca" id="daftar"></div><span class="info" id="info"></span></div>
+<div class="kredit" id="kredit" hidden>Dibuat dengan ARA</div>
+<div class="sambut" id="sambut" hidden>
+  <div class="sambut-kartu">
+    <div class="merek"><i>A</i>ARA Viewer</div>
+    <h1>Lihat desain ruangan Anda dalam 360°</h1>
+    <p>Buka berkas panorama yang dikirim desainer Anda, lalu geser atau putar HP untuk melihat ke segala arah.</p>
+    <label class="pilih" tabindex="0"><svg class="ik" viewBox="0 0 24 24"><path d="M12 18V12M12 12L9 14M12 12L15 14M13 3.00087C12.9045 3 12.7973 3 12.6747 3H8.2002C7.08009 3 6.51962 3 6.0918 3.21799C5.71547 3.40973 5.40973 3.71547 5.21799 4.0918C5 4.51962 5 5.08009 5 6.2002V17.8002C5 18.9203 5 19.4801 5.21799 19.9079C5.40973 20.2842 5.71547 20.5905 6.0918 20.7822C6.51921 21 7.079 21 8.19694 21L15.8031 21C16.921 21 17.48 21 17.9074 20.7822C18.2837 20.5905 18.5905 20.2842 18.7822 19.9079C19 19.4805 19 18.9215 19 17.8036V9.32568C19 9.20296 19 9.09561 18.9991 9M13 3.00087C13.2856 3.00347 13.4663 3.01385 13.6388 3.05526C13.8429 3.10425 14.0379 3.18526 14.2168 3.29492C14.4186 3.41857 14.5918 3.59182 14.9375 3.9375L18.063 7.06298C18.4089 7.40889 18.5809 7.58136 18.7046 7.78319C18.8142 7.96214 18.8953 8.15726 18.9443 8.36133C18.9857 8.53376 18.9963 8.71451 18.9991 9M13 3.00087V5.8C13 6.9201 13 7.47977 13.218 7.90759C13.4097 8.28392 13.7155 8.59048 14.0918 8.78223C14.5192 9 15.079 9 16.1969 9H18.9991M18.9991 9H19.0002"/></svg>Pilih berkas<input id="berkas" type="file" accept="image/*,.html,.htm,text/html" multiple hidden></label>
+    <div class="galat" id="galat"></div>
+    <ol class="langkah">
+      <li>Di WhatsApp, tekan berkas panorama → Bagikan → Simpan ke File.</li>
+      <li>Kembali ke sini, tekan Pilih berkas, lalu pilih berkas tadi.</li>
+      <li>Geser layar, atau putar HP, untuk melihat sekeliling.</li>
+    </ol>
+    <div class="privasi"><svg class="ik" viewBox="0 0 24 24"><path d="M9.23047 9H7.2002C6.08009 9 5.51962 9 5.0918 9.21799C4.71547 9.40973 4.40973 9.71547 4.21799 10.0918C4 10.5196 4 11.0801 4 12.2002V17.8002C4 18.9203 4 19.4801 4.21799 19.9079C4.40973 20.2842 4.71547 20.5905 5.0918 20.7822C5.5192 21 6.07902 21 7.19694 21H16.8031C17.921 21 18.48 21 18.9074 20.7822C19.2837 20.5905 19.5905 20.2842 19.7822 19.9079C20 19.4805 20 18.9215 20 17.8036V12.1969C20 11.079 20 10.5192 19.7822 10.0918C19.5905 9.71547 19.2837 9.40973 18.9074 9.21799C18.4796 9 17.9203 9 16.8002 9H14.7689M9.23047 9H14.7689M9.23047 9C9.10302 9 9 8.89668 9 8.76923V6C9 4.34315 10.3431 3 12 3C13.6569 3 15 4.34315 15 6V8.76923C15 8.89668 14.8964 9 14.7689 9"/></svg>Berkas hanya dibuka di HP Anda — tidak diunggah ke mana pun.</div>
+  </div>
+</div>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const kanvas = $('kanvas'), info = $('info'), daftarEl = $('daftar');
+  // Di dalam jendela ARA (iframe) = polos SEJAK AWAL: tanpa kedip halaman pembuka & tanpa putar otomatis sebelum pesan pertama.
+  if (window.parent !== window) document.body.classList.add('polos');
+  const polos = () => document.body.classList.contains('polos');
+  const opsi = { antialias: false, preserveDrawingBuffer: true };
+  const gl = kanvas.getContext('webgl2', opsi) || kanvas.getContext('webgl', opsi);
+  if (!gl) {
+    if (document.querySelector('.cadangan')) document.documentElement.className = '';   // berkas ekspor → foto datar + petunjuk
+    else { $('sambut').hidden = false; $('galat').textContent = 'Browser ini tidak mendukung WebGL — panorama tidak bisa ditampilkan.'; }
+    return;
+  }
+  const gl2 = typeof WebGL2RenderingContext !== 'undefined' && gl instanceof WebGL2RenderingContext;
+
+  const VS = 'attribute vec2 p; varying vec2 uv; void main() { uv = p; gl_Position = vec4(p, 0.0, 1.0); }';
+  // Arah sinar per piksel → bujur/lintang → koordinat panorama. x kanan, y atas, z depan.
+  // Panorama 2:1 hampir selalu DIPERBESAR di layar (2912 px melingkar = ±1,5 px layar per piksel gambar di 1080p),
+  // jadi diambil bikubik Catmull-Rom (9 ambilan bilinear, rumus MJP) — bilinear biasa membuat tepi lembek.
+  const FS = `precision highp float;
+    varying vec2 uv; uniform sampler2D tex; uniform vec2 ukuran; uniform float yaw, pitch, t, aspek;
+    const float PI = 3.14159265358979;
+    vec4 bikubik(vec2 q) {
+      vec2 s = q * ukuran, t1 = floor(s - 0.5) + 0.5, f = s - t1;
+      vec2 w0 = f * (-0.5 + f * (1.0 - 0.5 * f)), w1 = 1.0 + f * f * (-2.5 + 1.5 * f);
+      vec2 w2 = f * (0.5 + f * (2.0 - 1.5 * f)), w3 = f * f * (-0.5 + 0.5 * f), w12 = w1 + w2;
+      vec2 a = (t1 - 1.0) / ukuran, b = (t1 + w2 / w12) / ukuran, c = (t1 + 2.0) / ukuran;
+      return (texture2D(tex, vec2(a.x, a.y)) * w0.x + texture2D(tex, vec2(b.x, a.y)) * w12.x + texture2D(tex, vec2(c.x, a.y)) * w3.x) * w0.y
+           + (texture2D(tex, vec2(a.x, b.y)) * w0.x + texture2D(tex, vec2(b.x, b.y)) * w12.x + texture2D(tex, vec2(c.x, b.y)) * w3.x) * w12.y
+           + (texture2D(tex, vec2(a.x, c.y)) * w0.x + texture2D(tex, vec2(b.x, c.y)) * w12.x + texture2D(tex, vec2(c.x, c.y)) * w3.x) * w3.y;
+    }
+    void main() {
+      vec3 d = normalize(vec3(uv.x * t * aspek, uv.y * t, 1.0));
+      float cp = cos(pitch), sp = sin(pitch);
+      d = vec3(d.x, d.y * cp + d.z * sp, -d.y * sp + d.z * cp);
+      float cy = cos(yaw), sy = sin(yaw);
+      d = vec3(d.x * cy + d.z * sy, d.y, -d.x * sy + d.z * cy);
+      gl_FragColor = bikubik(vec2(atan(d.x, d.z) / (2.0 * PI) + 0.5, 0.5 - asin(clamp(d.y, -1.0, 1.0)) / PI));
+    }`;
+  const shader = (jenis, src) => { const s = gl.createShader(jenis); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; };
+  const prog = gl.createProgram();
+  gl.attachShader(prog, shader(gl.VERTEX_SHADER, VS)); gl.attachShader(prog, shader(gl.FRAGMENT_SHADER, FS));
+  gl.linkProgram(prog); gl.useProgram(prog);
+  gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+  const aP = gl.getAttribLocation(prog, 'p'); gl.enableVertexAttribArray(aP); gl.vertexAttribPointer(aP, 2, gl.FLOAT, false, 0, 0);
+  const U = n => gl.getUniformLocation(prog, n), uYaw = U('yaw'), uPitch = U('pitch'), uT = U('t'), uAspek = U('aspek'), uUkuran = U('ukuran');
+
+  // WebGL2: gambar diunggah APA ADANYA (REPEAT boleh di ukuran bebas) → satu kali interpolasi. Dulu selalu lewat
+  // kanvas pangkat dua (2912 → 4096) = dua kali interpolasi; terukur 9/10 lebih lembek (laporan "di 360 burem").
+  // WebGL1 (browser lama) tetap jalur pangkat dua: REPEAT (sambungan kiri-kanan mulus) hanya boleh di ukuran itu.
+  // Gambar yang bukan 2:1 (mis. keluaran AI 16:9) tetap teregang ke 2:1 — koordinat tekstur 0..1 di kedua jalur.
+  // ponytail: tanpa mipmap — mipmap memunculkan garis 1 px di sambungan; tepi agak bergerigi saat zoom jauh.
+  // ponytail: batas 8192 = ±128 MB memori grafis; HP lemah bisa kewalahan — turunkan batasnya bila ada laporan.
+  const MAKS = Math.min(8192, gl.getParameter(gl.MAX_TEXTURE_SIZE));
+  const tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  const kerja = document.createElement('canvas');
+  const ctx = kerja.getContext('2d');
+
+  const daftar = []; let aktif = -1;
+  let yaw = 0, pitch = 0, fov = 75 * Math.PI / 180, antre = false;
+  const MIN_FOV = 30 * Math.PI / 180, MAX_FOV = 110 * Math.PI / 180;
+
+  function gambar() {
+    antre = false;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = Math.round(kanvas.clientWidth * dpr), h = Math.round(kanvas.clientHeight * dpr);
+    if (kanvas.width !== w || kanvas.height !== h) { kanvas.width = w; kanvas.height = h; }
+    gl.viewport(0, 0, w, h); gl.clearColor(0.071, 0.071, 0.078, 1); gl.clear(gl.COLOR_BUFFER_BIT);
+    if (aktif < 0) return;
+    gl.uniform1f(uYaw, yaw); gl.uniform1f(uPitch, pitch); gl.uniform1f(uT, Math.tan(fov / 2)); gl.uniform1f(uAspek, w / h);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
+  const minta = () => { if (!antre) { antre = true; requestAnimationFrame(gambar); } };
+
+  // "Ambil sudut" (owner 10/10: Mode Cerita dari foto 360). Bingkai rasio r di tengah, ±86 % kanvas. Potongan = arah & zoom
+  // yang sama, sudut pandang disempitkan seukuran ISI bingkai → foto datar (rectilinear): garis lurus tetap lurus.
+  let rasioBingkai = 0;
+  function aturBingkai() {
+    const b = $('bingkai');
+    b.hidden = !(rasioBingkai > 0);
+    if (b.hidden) return;
+    const h = Math.min(kanvas.clientHeight * 0.86, kanvas.clientWidth * 0.86 / rasioBingkai);
+    b.style.width = Math.round(h * rasioBingkai) + 'px'; b.style.height = Math.round(h) + 'px';
+  }
+  // ponytail: sisi panjang tetap (1600) — di sudut itu panorama Gemini hanya punya ±600–900 px detail asli.
+  function potong(panjang) {
+    if (aktif < 0 || !(rasioBingkai > 0)) return null;
+    const k = $('bingkai').clientHeight / kanvas.clientHeight;
+    const w = Math.round(rasioBingkai >= 1 ? panjang : panjang * rasioBingkai), h = Math.round(rasioBingkai >= 1 ? panjang / rasioBingkai : panjang);
+    kanvas.width = w; kanvas.height = h; gl.viewport(0, 0, w, h);
+    gl.uniform1f(uYaw, yaw); gl.uniform1f(uPitch, pitch); gl.uniform1f(uT, Math.tan(fov / 2) * k); gl.uniform1f(uAspek, w / h);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    const url = kanvas.toDataURL('image/jpeg', 0.95);
+    gambar();   // kembali ke ukuran layar di tugas yang sama → tak ada bingkai yang sempat tampil
+    return url;
+  }
+
+  // ── Lapisan klien (berkas ekspor & ARA Viewer). Ikon = coolicons (assets/icons/coolicons.iconjar), disalin sbg path
+  // karena berkas ini berdiri sendiri tanpa CSS/huruf ikon app.
+  const IK_JEDA = '<path d="M15 5.5V18.5C15 18.9647 15 19.197 15.0384 19.3902C15.1962 20.1836 15.816 20.8041 16.6094 20.9619C16.8026 21.0003 17.0349 21.0003 17.4996 21.0003C17.9642 21.0003 18.1974 21.0003 18.3906 20.9619C19.184 20.8041 19.8041 20.1836 19.9619 19.3902C20 19.1987 20 18.9687 20 18.5122V5.48777C20 5.03125 20 4.80087 19.9619 4.60938C19.8041 3.81599 19.1836 3.19624 18.3902 3.03843C18.197 3 17.9647 3 17.5 3C17.0353 3 16.8026 3 16.6094 3.03843C15.816 3.19624 15.1962 3.81599 15.0384 4.60938C15 4.80257 15 5.03534 15 5.5Z"/><path d="M4 5.5V18.5C4 18.9647 4 19.197 4.03843 19.3902C4.19624 20.1836 4.81599 20.8041 5.60938 20.9619C5.80257 21.0003 6.0349 21.0003 6.49956 21.0003C6.96421 21.0003 7.19743 21.0003 7.39062 20.9619C8.18401 20.8041 8.8041 20.1836 8.96191 19.3902C9 19.1987 9 18.9687 9 18.5122V5.48777C9 5.03125 9 4.80087 8.96191 4.60938C8.8041 3.81599 8.18356 3.19624 7.39018 3.03843C7.19698 3 6.96465 3 6.5 3C6.03535 3 5.80257 3 5.60938 3.03843C4.81599 3.19624 4.19624 3.81599 4.03843 4.60938C4 4.80257 4 5.03534 4 5.5Z"/>';
+  const IK_MAIN = '<path d="M5 17.3336V6.66698C5 5.78742 5 5.34715 5.18509 5.08691C5.34664 4.85977 5.59564 4.71064 5.87207 4.67499C6.18868 4.63415 6.57701 4.84126 7.35254 5.25487L17.3525 10.5882L17.3562 10.5898C18.2132 11.0469 18.642 11.2756 18.7826 11.5803C18.9053 11.8462 18.9053 12.1531 18.7826 12.4189C18.6418 12.7241 18.212 12.9537 17.3525 13.4121L7.35254 18.7454C6.57645 19.1593 6.1888 19.3657 5.87207 19.3248C5.59564 19.2891 5.34664 19.1401 5.18509 18.9129C5 18.6527 5 18.2132 5 17.3336Z"/>';
+  const INFO = Object.assign({}, window.PANORAMA_INFO);
+  const diam = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let putar = false, gerak = false, tampak = false, petunjukPergi = false;
+  function aturPutar(v) {
+    putar = v; $('b-putar').setAttribute('aria-pressed', String(v)); $('ik-putar').innerHTML = v ? IK_JEDA : IK_MAIN;
+    $('b-putar').title = $('b-putar').ariaLabel = v ? 'Hentikan putar otomatis' : 'Putar otomatis';
+  }
+  // Putar pelan sampai disentuh — tanda bahwa gambarnya bisa digerakkan. Tak pernah di jendela ARA (Ambil sudut memotong
+  // arah yang tampak) dan tidak saat tab tersembunyi.
+  let tadi = 0;
+  function jalan(ts) {
+    const dt = Math.min(0.05, (ts - tadi) / 1000 || 0); tadi = ts;
+    if (putar && !gerak && aktif >= 0 && !polos() && !document.hidden) { yaw += dt * 0.08; gambar(); }
+    requestAnimationFrame(jalan);
+  }
+  const usir = () => { if (!petunjukPergi) { petunjukPergi = true; $('petunjuk').classList.add('pergi'); } };
+  const sentuh = () => { usir(); if (putar) aturPutar(false); };
+  function tampil() {
+    if (polos() || !daftar.length) return;
+    $('sambut').hidden = true;
+    ['judul', 'alat', 'kredit'].forEach(id => { $(id).hidden = false; });
+    $('j-proyek').textContent = [INFO.judul, INFO.studio].filter(Boolean).join(' · ') || 'Panorama 360';
+    $('rak').hidden = daftar.length < 2; document.body.classList.toggle('ada-rak', daftar.length > 1);
+    $('j-ke').textContent = daftar.length > 1 ? `Ruang ${aktif + 1} dari ${daftar.length}` : '';
+    if (!tampak) {
+      tampak = true; $('petunjuk').hidden = false; setTimeout(usir, 6000);
+      aturPutar(!diam); requestAnimationFrame(jalan);
+    }
+  }
+
+  function pilih(i, pelan) {
+    if (!daftar[i]) return;
+    const ganti = () => {
+      aktif = i;
+      const { img, nama } = daftar[i];
+      const w = img.naturalWidth, h = img.naturalHeight, r = w / h;
+      if (gl2 && w <= MAKS && h <= MAKS) {
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+        gl.uniform2f(uUkuran, w, h);
+      } else {
+        const tw = gl2 ? Math.min(MAKS, w) : Math.min(MAKS, 2 ** Math.ceil(Math.log2(Math.max(2, w))));
+        if (kerja.width !== tw) { kerja.width = tw; kerja.height = tw / 2; }
+        ctx.drawImage(img, 0, 0, kerja.width, kerja.height);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, kerja);
+        gl.uniform2f(uUkuran, kerja.width, kerja.height);
+      }
+      info.textContent = `${nama} · ${w}×${h} · rasio ${r.toFixed(2)}:1` + (Math.abs(r - 2) > 0.02 ? ' — diregangkan ke 2:1' : '');
+      $('j-ruang').textContent = nama;
+      $('j-ke').textContent = daftar.length > 1 ? `Ruang ${i + 1} dari ${daftar.length}` : '';
+      [...daftarEl.children].forEach((b, k) => b.setAttribute('aria-pressed', String(k === i)));
+      minta();
+    };
+    // pindah ruang dari kartu: layar menggelap sekejap, bukan meloncat (jendela ARA & pesan: langsung)
+    if (!pelan || aktif < 0 || polos()) return ganti();
+    const t = $('tirai'); t.classList.add('tutup');
+    requestAnimationFrame(() => { ganti(); requestAnimationFrame(() => t.classList.remove('tutup')); });
+  }
+
+  // sampul kartu ruang = potongan "depan" panorama (tengah, ¼ lebar)
+  function sampul(img) {
+    try {
+      const c = document.createElement('canvas'); c.width = 256; c.height = 144;
+      const sw = img.naturalWidth * 0.25, sh = Math.min(img.naturalHeight, sw * 144 / 256);
+      c.getContext('2d').drawImage(img, img.naturalWidth * 0.375, (img.naturalHeight - sh) / 2, sw, sh, 0, 0, 256, 144);
+      return c.toDataURL('image/jpeg', 0.8);
+    } catch (_) { return ''; }
+  }
+
+  async function tambah(nama, src) {
+    // onload, bukan img.decode(): decode() menggantung selama halaman tersembunyi (tab belakang),
+    // walau gambar sudah termuat — terukur 8/10, daftar gambar tak pernah muncul.
+    const img = new Image();
+    try { await new Promise((ok, gagal) => { img.onload = ok; img.onerror = gagal; img.src = src; }); }
+    catch (_) { info.textContent = `Gagal membaca ${nama}`; return false; }
+    daftar.push({ nama, img });
+    const b = document.createElement('button');
+    b.className = 'kartu'; b.setAttribute('aria-pressed', 'false');
+    const g = document.createElement('span'), n = document.createElement('span');
+    g.className = 'gbr'; n.className = 'nm'; n.textContent = nama;
+    if (!polos()) { const s = sampul(img); if (s) g.style.backgroundImage = `url(${s})`; }
+    b.append(g, n);
+    const i = daftar.length - 1; b.onclick = () => { sentuh(); pilih(i, true); };
+    daftarEl.appendChild(b);
+    if (aktif < 0) pilih(i);
+    return true;
+  }
+
+  // Berkas dari pengguna (Pilih berkas / seret-lepas): foto panorama, atau berkas .html ekspor ARA (gambar & judulnya
+  // diambil dari dalamnya — hanya data:image yang dipakai, isinya tak pernah dijalankan).
+  async function bukaBerkas(files) {
+    $('galat').textContent = '';
+    let ok = 0;
+    for (const f of files) {
+      try {
+        if (/^image\//.test(f.type)) { if (await tambah(f.name.replace(/\.[^.]+$/, ''), URL.createObjectURL(f))) ok++; continue; }
+        if (!/\.html?$/i.test(f.name) && !/html/.test(f.type)) continue;
+        const teks = await f.text(), m = 'window.PANORAMA_DAFTAR = ';
+        const a = teks.indexOf(m + '[{"');   // '[{"' = data sungguhan; contoh di komentar pemutar ditulis '[{ nama'
+        const z = a < 0 ? -1 : teks.indexOf(';<\/script>', a);
+        if (z < 0) continue;
+        const mi = 'window.PANORAMA_INFO = ', ai = teks.indexOf(mi + '{'), zi = ai < 0 ? -1 : teks.indexOf(';<\/script>', ai);
+        if (zi > 0) try { const d = JSON.parse(teks.slice(ai + mi.length, zi)); INFO.judul = String(d.judul || '').slice(0, 120); INFO.studio = String(d.studio || '').slice(0, 80); } catch (_) {}
+        for (const p of JSON.parse(teks.slice(a + m.length, z))) if (p && /^data:image\//.test(String(p.src)) && await tambah(String(p.nama || 'Panorama').slice(0, 80), p.src)) ok++;
+      } catch (_) { /* berkas rusak → lewati, pesan di bawah */ }
+    }
+    if (ok) tampil();
+    else if (!daftar.length) $('galat').textContent = 'Berkas ini tidak bisa dibuka. Pilih foto panorama 360 atau berkas panorama dari desainer Anda.';
+  }
+
+  $('berkas').onchange = e => bukaBerkas([...e.target.files]);
+  $('berkas').parentElement.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('berkas').click(); } };
+  addEventListener('dragover', e => { e.preventDefault(); document.body.classList.add('jatuh'); });
+  addEventListener('dragleave', () => document.body.classList.remove('jatuh'));
+  addEventListener('drop', e => { e.preventDefault(); document.body.classList.remove('jatuh'); bukaBerkas([...e.dataTransfer.files]); });
+
+  // Seret = gambar ikut jari (geser ke kanan → pandangan ke kiri). Dua jari = cubit zoom.
+  const jari = new Map();
+  const jepit = () => { pitch = Math.max(-1.55, Math.min(1.55, pitch)); fov = Math.max(MIN_FOV, Math.min(MAX_FOV, fov)); };
+  kanvas.addEventListener('pointerdown', e => { sentuh(); try { kanvas.setPointerCapture(e.pointerId); } catch (_) {} jari.set(e.pointerId, { x: e.clientX, y: e.clientY }); kanvas.classList.add('seret'); });
+  kanvas.addEventListener('pointermove', e => {
+    const lama = jari.get(e.pointerId); if (!lama) return;
+    if (jari.size === 1) {
+      const k = 2 * Math.tan(fov / 2) / kanvas.clientHeight;
+      yaw -= (e.clientX - lama.x) * k; if (!gerak) pitch += (e.clientY - lama.y) * k;
+    } else if (jari.size === 2) {
+      const lain = [...jari].find(([id]) => id !== e.pointerId)[1];
+      const sebelum = Math.hypot(lama.x - lain.x, lama.y - lain.y), sesudah = Math.hypot(e.clientX - lain.x, e.clientY - lain.y);
+      if (sebelum > 0 && sesudah > 0) fov *= sebelum / sesudah;
+    }
+    jari.set(e.pointerId, { x: e.clientX, y: e.clientY }); jepit(); minta();
+  });
+  const lepas = e => { jari.delete(e.pointerId); if (!jari.size) kanvas.classList.remove('seret'); };
+  kanvas.addEventListener('pointerup', lepas); kanvas.addEventListener('pointercancel', lepas);
+  kanvas.addEventListener('wheel', e => { e.preventDefault(); sentuh(); fov *= Math.exp(e.deltaY * 0.0015); jepit(); minta(); }, { passive: false });
+  addEventListener('keydown', e => {
+    if (/^[1-9]$/.test(e.key)) { sentuh(); return pilih(Number(e.key) - 1, true); }
+    const langkah = 5 * Math.PI / 180;
+    if (e.key === 'ArrowLeft') yaw -= langkah; else if (e.key === 'ArrowRight') yaw += langkah;
+    else if (e.key === 'ArrowUp') pitch += langkah; else if (e.key === 'ArrowDown') pitch -= langkah; else return;
+    sentuh(); jepit(); minta();
+  });
+  addEventListener('resize', () => { aturBingkai(); minta(); });
+
+  // Tombol bulat: putar otomatis · putar HP (sensor gerak; iPhone minta izin lewat ketukan) · layar penuh (tak ada di iPhone).
+  $('b-putar').onclick = () => { usir(); aturPutar(!putar); };
+  if (document.fullscreenEnabled) {
+    $('b-penuh').hidden = false;
+    $('b-penuh').onclick = () => { usir(); (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()).catch(() => {}); };
+  }
+  // ponytail: arah HP disederhanakan untuk posisi tegak (alpha → kiri/kanan, beta → atas/bawah) — HP miring/rebah
+  // terasa aneh; ganti ke matriks rotasi penuh bila ada keluhan. Belum diuji di HP sungguhan.
+  let dasar = null;
+  function sensor(e) {
+    if (e.alpha == null || e.beta == null) return;
+    const a = e.alpha * Math.PI / 180;
+    if (!dasar) dasar = { a, yaw };
+    yaw = dasar.yaw - (a - dasar.a); pitch = (e.beta - 90) * Math.PI / 180; jepit(); minta();
+  }
+  if (typeof DeviceOrientationEvent !== 'undefined' && matchMedia('(pointer: coarse)').matches) {
+    $('b-gerak').hidden = false;
+    $('b-gerak').onclick = async () => {
+      usir();
+      if (gerak) { gerak = false; removeEventListener('deviceorientation', sensor); $('b-gerak').setAttribute('aria-pressed', 'false'); return; }
+      try { if (typeof DeviceOrientationEvent.requestPermission === 'function' && await DeviceOrientationEvent.requestPermission() !== 'granted') return; } catch (_) { return; }
+      gerak = true; dasar = null; aturPutar(false); addEventListener('deviceorientation', sensor); $('b-gerak').setAttribute('aria-pressed', 'true');
+    };
+  }
+  aturPutar(false);
+
+  (async () => {
+    const isi = window.PANORAMA_DAFTAR || [];
+    for (const p of isi) await tambah(p.nama, p.src);
+    if (daftar.length) tampil();
+    else if (!polos()) $('sambut').hidden = false;   // ARA Viewer: belum ada berkas
+    minta();
+  })();
+  // Jendela Panorama 360 di ARA memakai berkas ini di <iframe>; file:// antar-bingkai = asal berbeda → pesan.
+  // Hanya gambar data: yang diterima; isinya cuma ditampilkan, tak pernah dijalankan.
+  function kosongkan() { daftar.length = 0; aktif = -1; daftarEl.textContent = ''; info.textContent = ''; minta(); }
+  // Hanya dari jendela yang MEMUAT halaman ini (jendela ARA). Asal tak bisa dicocokkan — file:// = 'null' — jadi pengirimnya
+  // yang dicek; balasan 'potong' pun hanya ke pengirim itu. Halaman yang dibuka langsung (ekspor, ARA Viewer) tak menerima pesan.
+  addEventListener('message', async e => {
+    const m = e.data;
+    if (window.parent === window || e.source !== window.parent || !m || m.ara !== 'panorama') return;
+    if (m.polos) document.body.classList.add('polos');
+    if (typeof m.bingkai === 'string') {
+      const r = /^(\d+):(\d+)$/.exec(m.bingkai);
+      rasioBingkai = r && +r[2] ? r[1] / r[2] : 0; $('bingkai-label').textContent = m.bingkai; aturBingkai();
+    }
+    // Balasan hanya ke peminta; isinya potongan gambar yang memang sedang ditampilkan halaman ini.
+    if (m.t === 'potong' && e.source) { e.source.postMessage({ ara: 'panorama', t: 'potongan', id: m.id, dataUrl: potong(Math.min(4096, Number(m.panjang) || 1600)) }, '*'); return; }
+    if (m.t === 'kosong') kosongkan();
+    else if (m.t === 'tambah' && Array.isArray(m.daftar)) {
+      if (m.ganti) kosongkan();
+      for (const p of m.daftar) if (p && /^data:image\//.test(String(p.src))) await tambah(String(p.nama || 'Panorama').slice(0, 80), p.src);
+      if (typeof m.pilih === 'number') pilih(Math.min(m.pilih, daftar.length - 1));
+      tampil();
+    }
+  });
+  window.Panorama360Pemutar = { pilih, bukaBerkas, arah: (y, p, f) => { yaw = y; pitch = p; if (f) fov = f; jepit(); gambar(); },
+    keadaan: () => ({ yaw, pitch, fov, aktif, ruang: daftar.length, putar, polos: polos() }) };
+})();
+</script>
+</body>
+</html>
