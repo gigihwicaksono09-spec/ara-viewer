@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-VDVDNNRTREupwUTWnq6itaNdc1TFEVFbXV4xlAS7Gow=' 'sha256-D4RJGiZiSvZjCpeLhZoHfYtHv1cTitycI5qs7TK9gPw='; style-src 'sha256-zibgNRf602kvpjRfShZrevviRCd6hPMEwSkraMXKI8A='; img-src data: blob:; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-VDVDNNRTREupwUTWnq6itaNdc1TFEVFbXV4xlAS7Gow=' 'sha256-gZp6XYRe153aCJ4gf6uNMRij7GrxOigz3rez7GxTyig='; style-src 'sha256-h4lKxC4crzs2r/dQ1NNTczVjMBQbzhzJB7DS/A0V7e8='; img-src data: blob:; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>ARA Viewer — lihat desain ruangan dalam 360°</title>
 <meta name="description" content="Buka berkas panorama 360 dari desainer Anda, lalu geser atau putar HP. Berkas tetap di HP Anda — tidak diunggah.">
@@ -59,8 +59,9 @@
   body.polos .panahan, body.polos .denah { display: none !important; }
   body.rekam canvas { object-fit: contain; }   /* video sedang direkam: kanvas berukuran video, tampil utuh (tak melar) di layar */
   .judul { position: fixed; left: 16px; top: calc(16px + var(--aman-a)); max-width: min(380px, calc(100% - 32px - 148px)); border-radius: 18px; padding: 12px 16px; pointer-events: none; }
-  .judul .proyek { color: var(--redup); font-size: 12px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-  .judul .ruang { font-size: 20px; font-weight: 700; line-height: 1.2; margin-top: 2px; }
+  .judul .proyek { color: var(--redup); font-size: 12px; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .judul .ruang { font-size: 20px; font-weight: 700; line-height: 1.2; margin-top: 2px; overflow-wrap: anywhere;
+                  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }   /* nama panjang tanpa spasi: patah, maks 2 baris */
   .judul .ke { color: var(--aksen); font-size: 12px; font-weight: 600; margin-top: 2px; }
   .judul .ke:empty { display: none; }
   .alat { position: fixed; right: 16px; top: calc(16px + var(--aman-a)); display: flex; gap: 8px; }
@@ -496,7 +497,15 @@
   // Ruang tanpa meta tampil seperti biasa. Hanya ruang pertama (langsung tampil) yang pasti diurai; ruang lain TIDAK diurai bila
   // membawa sampul (atau di jendela ARA yang tanpa kartu) — tanpa sampul (berkas lama, foto biasa) diurai SEKALI utk membuat kartu
   // lalu dilepas. Gambar rusak: ruang tak ditambahkan (ruang berbekal sampul yang rusak baru ketahuan saat dipilih → pilih() membuangnya).
+  // Nama berkas mentah bukan nama ruang (owner 10/10: "Gemini_Generated_Image_t5n8…" menabrak tepi kartu judul):
+  // nama bawaan Gemini/kamera/HP → "Ruang n"; garis bawah → spasi.
+  const NAMA_MENTAH = /^(gemini generated image|img|dsc[fn]?|pxl|mvimg|screenshot|tangkapan layar|whatsapp image|image|photo)\b[\s\w().-]*$/i;
+  function namaRuang(nama) {
+    const s = String(nama || '').replace(/_+/g, ' ').replace(/\s*\(360\)\s*$/i, '').replace(/\s+/g, ' ').trim();
+    return !s || NAMA_MENTAH.test(s) ? `Ruang ${daftar.length + 1}` : s;
+  }
   async function tambah(nama, src, meta) {
+    nama = namaRuang(nama);
     const pertama = aktif < 0;
     let kecil = sampulSah(meta && meta.sampul), im = null;
     if (pertama || (!kecil && !polos())) {
